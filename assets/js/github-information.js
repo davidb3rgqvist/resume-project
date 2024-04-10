@@ -61,11 +61,39 @@ function fetchGitHubInformation(event) {
                 $("#gh-user-data").html(userInformationHTML(userData));
                 $("#gh-repo-data").html(repoInformationHTML(repoData));
 
-            }, function(errorResponse) {
+            }, 
+            function(errorResponse) {
                 if (errorResponse.status === 404) {
                     $("#gh-user-data").html(
                         `<h2>No info found for user ${username}</h2>`);
-                } else {
+                    } else if (errorResponse.status === 403) {
+                        var resetTime = new Date(errorResponse.getResponseHeader('X-RateLimit-Reset') * 1000);
+                        var currentTime = new Date();
+                        var timeDifference = resetTime.getTime() - currentTime.getTime();
+                        var secondsRemaining = Math.floor(timeDifference / 1000);
+                    
+                        function formatTime(seconds) {
+                            var hours = Math.floor(seconds / 3600);
+                            var minutes = Math.floor((seconds % 3600) / 60);
+                            var remainingSeconds = seconds % 60;
+                    
+                            return `${minutes} minutes, and ${remainingSeconds} seconds`;
+                        }
+                    
+                        var countdownMessage = `<h4>Too many requests, please wait: ${formatTime(secondsRemaining)}</h4>`;
+                        $("#gh-user-data").html(countdownMessage);
+                    
+                        // Update countdown every second
+                        var countdownInterval = setInterval(function () {
+                            secondsRemaining--;
+                            if (secondsRemaining <= 0) {
+                                clearInterval(countdownInterval);
+                                fetchGitHubInformation(event); // Reload data when countdown is over
+                            } else {
+                                $("#gh-user-data").html(`<h4>Too many requests, please wait: ${formatTime(secondsRemaining)}</h4>`);
+                            }
+                        }, 1000);
+                    } else {
                     console.log(errorResponse);
                     $("#gh-user-data").html(
                         `<h2>Error: ${errorResponse.responseJSON.message}</h2>`);
